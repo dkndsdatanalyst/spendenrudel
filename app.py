@@ -2,66 +2,58 @@ import streamlit as st
 import plotly.express as px
 import pandas as pd
 import json
-import os
 import io
 
 st.set_page_config(page_title="Spendenrudel Map", layout="wide")
+st.title("🐺 #spendenrudel")
 
-# Styling für die Überschrift
-st.markdown("<h1 style='text-align: center;'>🐺 #spendenrudel</h1>", unsafe_allow_html=True)
-
-# 1. Pfad-Check
-if not os.path.exists('landkreise.json') or not os.path.exists('spender.csv'):
-    st.error("⚠️ Dateien fehlen! Stelle sicher, dass landkreise.json und spender.csv im Repository liegen.")
-else:
-    # 2. Daten laden
+# 1. Daten laden
+try:
     with open('landkreise.json', encoding='utf-8') as f:
         landkreise_geo = json.load(f)
-    
-    # CSV laden und bereinigen (wichtig gegen den "Berlin-only" Bug)
+
     with open('spender.csv', 'r', encoding='utf-8') as f:
-        content = f.read().replace('\r', '') # Entfernt Windows-Umbrüche
-    
-    df = pd.read_csv(io.StringIO(content))
-    
-    # Namen säubern (entfernt unsichtbare Leerzeichen)
-    df['landkreis'] = df['landkreis'].astype(str).str.strip()
+        # Säubern von unsichtbaren Zeichen (\r)
+        raw_csv = f.read().replace('\r', '').strip()
+        df = pd.read_csv(io.StringIO(raw_csv))
+
+    # --- MATCHING LOGIK (Der Retter) ---
+    # Wir erstellen in der CSV einen "Clean-Namen": klein & ohne "stadt"/"landkreis"
+    df['landkreis_clean'] = df['landkreis'].str.lower().str.replace('landkreis', '', case=False).str.replace('stadt', '', case=False).str.strip()
     df['status'] = pd.to_numeric(df['status'], errors='coerce').fillna(0)
 
-    # 3. Die Karte erstellen
+    # Wir machen das Gleiche für jedes Element in der GeoJSON
+    for feature in landkreise_geo['features']:
+        name_in_json = feature['properties'].get('krs_name_short', '')
+        # Wir speichern einen neuen Key "match_key" direkt im GeoJSON-Objekt
+        feature['properties']['match_key'] = name_in_json.lower().replace('landkreis', '').replace('stadt', '').strip()
+
+    # 2. Die Karte bauen
     fig = px.choropleth(
         df,
         geojson=landkreise_geo,
-        locations='landkreis',
-        featureidkey='properties.krs_name_short',
+        locations='landkreis_clean',     # Nutzt den gesäuberten Namen aus der CSV
+        featureidkey='properties.match_key', # Vergleicht mit dem gesäuberten Namen in der JSON
         color='status',
-        color_continuous_scale=[[0, "white"], [1, "#006432"]], # Weiß zu Wolfsburg-Grün
-        range_color=[0, 1],
-        hover_data={'landkreis': True, 'status': False}
+        color_continuous_scale=[[0, "white"], [1, "#006432"]],
+        range_color=[0, 1]
     )
 
-    # 4. Karten-Design & Zoom
+    # 3. Karten-Ansicht optimieren
     fig.update_geos(
-        visible=False,
-        fitbounds="geojson", # Zwingt die Ansicht auf alle Landkreise in der JSON
-        showcountries=False
+        visible=False, 
+        fitbounds="geojson" # Zeigt IMMER ganz Deutschland, egal wer grün ist
     )
     
-    fig.update_traces(
-        marker_line_width=0.5, 
-        marker_line_color="lightgray"
-    )
-    
-    fig.update_layout(
-        margin={"r":0,"t":0,"l":0,"b":0},
-        coloraxis_showscale=False,
-        dragmode=False # Karte fest fixieren für Mobile-User
-    )
+    fig.update_traces(marker_line_width=0.5, marker_line_color="gray")
+    fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, coloraxis_showscale=False)
 
-    # 5. Anzeige in Streamlit
+    # 4. Ausgabe
     st.plotly_chart(fig, width='stretch')
-    
-    st.markdown(f"<p style='text-align: center; color: gray;'>Stand: 03.04.2026 | Spenden-Status aktiv</p>", unsafe_allow_html=True)
+    st.write(f"Stand: 03.04.2026 | Aktive Landkreise: {len(df[df['status'] > 0])}")
+
+except Exception as e:
+    st.error(f"Fehler beim Laden: {e}")
 
 st.markdown("---")
-st.caption("Datenquellen: Landkreise GeoJSON | Visualisierung: #spendenrudel Dashboard")
+st.caption("Visualisierung: #spendenrudel Dashboard")
