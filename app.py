@@ -17,12 +17,11 @@ else:
     
     df = pd.read_csv('spender.csv')
 
-    # Karte bauen
     fig = px.choropleth(
         df,
         geojson=landkreise_geo,
-        locations='landkreis',
-        featureidkey='properties.krs_name_short', # <--- DAS HIER ANPASSEN
+        locations='landkreis',               # Spalte in deiner spender.csv
+        featureidkey='properties.krs_name_short', # Pfad in deiner landkreise.json
         color='status',
         color_continuous_scale=[[0, "white"], [1, "#006432"]],
         range_color=[0, 1]
