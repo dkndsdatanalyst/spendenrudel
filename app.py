@@ -24,9 +24,8 @@ else:
         # sep=None + engine='python' erkennt automatisch ob Komma oder Semikolon
         df = pd.read_csv('landkreise.csv', sep=None, engine='python', encoding='utf-8-sig')
         
-        # RADIKALER FIX: Wir ignorieren Namen und nehmen Spalte 0 und 1
-        # .iloc[:, 0] bedeutet: "Nimm alle Zeilen der ersten Spalte"
-        df['match_id'] = df.iloc[:, 0].astype(str).str.strip().lower()
+        # FIX: .str.lower() statt nur .lower()
+        df['match_id'] = df.iloc[:, 0].astype(str).str.strip().str.lower()
         df['val'] = pd.to_numeric(df.iloc[:, 1], errors='coerce').fillna(0)
 
         # 3. Die Karte bauen
@@ -36,7 +35,6 @@ else:
             locations='match_id',
             featureidkey='properties.clean_key',
             color='val',
-            # Weiß für 0, Wolfsburg-Grün für 1
             color_continuous_scale=[[0, "#ffffff"], [1, "#006432"]],
             range_color=[0, 1],
             hover_name=df.columns[0]
@@ -54,11 +52,10 @@ else:
 
         st.plotly_chart(fig, use_container_width=True)
 
-        # DEBUG-BEREICH (Damit wir sehen, was passiert)
-        with st.expander("🛠️ Debug-Check für Bruno"):
-            st.write("Erkannte Spalten:", list(df.columns))
-            st.write("Inhalt Spalte 1 (Landkreis):", df.iloc[:, 0].tolist())
-            st.write("Inhalt Spalte 2 (Status):", df.iloc[:, 1].tolist())
+        # DEBUG-BEREICH
+        with st.expander("🛠️ Debug-Check"):
+            st.write("Match-Liste aus CSV:", df['match_id'].tolist())
+            st.write("Erste 3 aus GeoJSON:", [f['properties']['clean_key'] for f in landkreise_geo['features'][:3]])
 
     except Exception as e:
         st.error(f"Kritischer Fehler: {e}")
