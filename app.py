@@ -8,7 +8,7 @@ import io
 st.set_page_config(page_title="Spendenrudel Map", layout="wide")
 st.title("🐺 #spendenrudel")
 
-if not os.path.exists('landkreise.json') or not os.path.exists('spender.csv'):
+if not os.path.exists('landkreise.json') or not os.path.exists('landkreise.csv'):
     st.error("Dateien fehlen im Repository!")
 else:
     # 1. GeoJSON laden & Schlüssel säubern
@@ -20,7 +20,7 @@ else:
         feature['properties']['clean_key'] = str(name).strip().lower()
 
     # 2. CSV laden mit Schutz gegen unsichtbare Zeichen (BOM)
-    with open('spender.csv', 'r', encoding='utf-8-sig') as f:
+    with open('landkreise.csv', 'r', encoding='utf-8-sig') as f:
         content = f.read().replace('\r', '').strip()
     
     df = pd.read_csv(io.StringIO(content))
