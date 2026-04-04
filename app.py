@@ -9,56 +9,52 @@ st.set_page_config(page_title="Spendenrudel Map", layout="wide")
 st.title("🐺 #spendenrudel")
 
 if not os.path.exists('landkreise.json') or not os.path.exists('landkreise.csv'):
-    st.error("Dateien fehlen im Repository!")
+    st.error("Dateien fehlen!")
 else:
-    # 1. GeoJSON laden & Schlüssel säubern
+    # 1. GeoJSON laden
     with open('landkreise.json', encoding='utf-8') as f:
         landkreise_geo = json.load(f)
     
-    for feature in landkreise_geo['features']:
-        name = feature['properties'].get('krs_name_short', 'unbekannt')
-        feature['properties']['clean_key'] = str(name).strip().lower()
-
-    # 2. CSV laden mit automatischer Trennzeichen-Erkennung
+    # 2. CSV laden
     try:
-        # sep=None + engine='python' erkennt automatisch ob Komma oder Semikolon
         df = pd.read_csv('landkreise.csv', sep=None, engine='python', encoding='utf-8-sig')
-        
-        # FIX: .str.lower() statt nur .lower()
-        df['match_id'] = df.iloc[:, 0].astype(str).str.strip().str.lower()
-        df['val'] = pd.to_numeric(df.iloc[:, 1], errors='coerce').fillna(0)
+        # Wir machen ein Dictionary aus der CSV: { 'wolfsburg': 1, 'berlin': 0 }
+        spenden_dict = dict(zip(
+            df.iloc[:, 0].astype(str).str.strip().str.lower(), 
+            df.iloc[:, 1].astype(float)
+        ))
 
-        # 3. Die Karte bauen
+        # 3. DATEN DIREKT IN DIE GEOJSON SCHREIBEN (Der Trick!)
+        for feature in landkreise_geo['features']:
+            name = str(feature['properties'].get('krs_name_short', '')).strip().lower()
+            # Wenn der Name in deiner Liste ist, kriegt er den Status, sonst 0
+            feature['properties']['spende_status'] = spenden_dict.get(name, 0.0)
+
+        # 4. Karte zeichnen (Wir nutzen jetzt die GeoJSON selbst als Datenquelle)
         fig = px.choropleth(
-            df,
             geojson=landkreise_geo,
-            locations='match_id',
-            featureidkey='properties.clean_key',
-            color='val',
+            locations=[f['properties']['krs_name_short'] for f in landkreise_geo['features']],
+            featureidkey='properties.krs_name_short',
+            color=[f['properties']['spende_status'] for f in landkreise_geo['features']],
             color_continuous_scale=[[0, "#ffffff"], [1, "#006432"]],
             range_color=[0, 1],
-            hover_name=df.columns[0]
+            labels={'color': 'Status'}
         )
 
-        fig.update_geos(
-            visible=False,
-            fitbounds="geojson",
-            showcountries=False,
-            bgcolor="white"
-        )
-        
+        fig.update_geos(visible=False, fitbounds="geojson", bgcolor="white")
         fig.update_traces(marker_line_width=0.5, marker_line_color="#444")
         fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, coloraxis_showscale=False)
 
         st.plotly_chart(fig, use_container_width=True)
 
-        # DEBUG-BEREICH
-        with st.expander("🛠️ Debug-Check"):
-            st.write("Match-Liste aus CSV:", df['match_id'].tolist())
-            st.write("Erste 3 aus GeoJSON:", [f['properties']['clean_key'] for f in landkreise_geo['features'][:3]])
+        # Kleiner Monitor für dich
+        if "wolfsburg" in spenden_dict:
+            st.success(f"Wolfsburg erkannt! Status: {spenden_dict['wolfsburg']}")
+        else:
+            st.warning("Wolfsburg wurde in der CSV nicht gefunden (Check Schreibweise!)")
 
     except Exception as e:
-        st.error(f"Kritischer Fehler: {e}")
+        st.error(f"Fehler: {e}")
 
 st.markdown("---")
-st.caption("Stand: 04.04.2026 | #spendenrudel")
+st.caption("Status: Direkte GeoJSON-Injektion aktiv.")
