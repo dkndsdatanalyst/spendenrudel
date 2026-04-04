@@ -11,9 +11,13 @@ st.title("🐺 #spendenrudel")
 # 1. Dateien laden
 if not os.path.exists('landkreise.json') or not os.path.exists('landkreise.csv'):
     st.error("Dateien fehlen im Repo! (landkreise.json & spender.csv)")
-else:
-    with open('landkreise.json', encoding='utf-8') as f:
-        landkreise_geo = json.load(f)
+try:
+    with open('landkreise.json', encoding='utf-8-sig') as f:
+        file_content = f.read().strip()
+        landkreise_geo = json.loads(file_content)
+except Exception as e:
+    st.error(f"Die landkreise.json ist beschädigt oder kein gültiges JSON: {e}")
+    st.stop() # App hier anhalten, da ohne Karte nichts geht
     
     # 2. Master-Liste aus der GeoJSON erstellen
     # Wir ziehen alle Namen direkt aus der Quelle der Wahrheit
