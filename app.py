@@ -9,7 +9,7 @@ st.set_page_config(page_title="Spendenrudel Map", layout="wide")
 st.title("🐺 #spendenrudel")
 
 # 1. Dateien laden
-if not os.path.exists('landkreise.json') or not os.path.exists('spender.csv'):
+if not os.path.exists('landkreise.json') or not os.path.exists('landkreise.csv'):
     st.error("Dateien fehlen im Repo! (landkreise.json & spender.csv)")
 else:
     with open('landkreise.json', encoding='utf-8') as f:
@@ -29,7 +29,7 @@ else:
     # 3. Deine spender.csv einlesen und die 1er setzen
     try:
         # Einlesen mit automatischer Trenner-Erkennung
-        df_real = pd.read_csv('spender.csv', sep=None, engine='python', encoding='utf-8-sig')
+        df_real = pd.read_csv('landkreise.csv', sep=None, engine='python', encoding='utf-8-sig')
         
         # Wir machen alles für den Vergleich kurz klein, damit "Wolfsburg" = "wolfsburg" ist
         landkreise_komplett['match_key'] = landkreise_komplett['landkreis'].str.strip().str.lower()
