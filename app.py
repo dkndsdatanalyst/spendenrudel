@@ -6,65 +6,64 @@ import os
 import io
 
 st.set_page_config(page_title="Spendenrudel Map", layout="wide")
+st.title("🐺 #spendenrudel")
 
-# Titel & Style
-st.markdown("<h1 style='text-align: center;'>🐺 #spendenrudel</h1>", unsafe_allow_html=True)
-
-# 1. Sicherheits-Check
 if not os.path.exists('landkreise.json') or not os.path.exists('spender.csv'):
-    st.error("⚠️ Dateien fehlen im Repository!")
+    st.error("Dateien fehlen!")
 else:
-    # 2. Daten laden
+    # 1. GeoJSON laden
     with open('landkreise.json', encoding='utf-8') as f:
         landkreise_geo = json.load(f)
     
-    # CSV laden & säubern
+    # 2. CSV laden & extrem säubern
     with open('spender.csv', 'r', encoding='utf-8') as f:
-        df = pd.read_csv(io.StringIO(f.read().replace('\r', '').strip()))
-
-    # 3. Das "Sorglos-Matching"
-    # Wir machen alles klein und entfernen "Stadt"/"Landkreis" für den Vergleich
-    df['match_name'] = df['landkreis'].str.lower().str.replace('landkreis', '', case=False).str.replace('stadt', '', case=False).str.strip()
+        clean_content = f.read().replace('\r', '').strip()
+    
+    df = pd.read_csv(io.StringIO(clean_content))
+    
+    # WICHTIG: Leerzeichen und Dubletten entfernen
+    df['landkreis'] = df['landkreis'].astype(str).str.strip()
     df['status'] = pd.to_numeric(df['status'], errors='coerce').fillna(0)
 
-    for feature in landkreise_geo['features']:
-        orig_name = feature['properties'].get('krs_name_short', '')
-        feature['properties']['match_key'] = orig_name.lower().replace('landkreis', '').replace('stadt', '').strip()
-
-    # 4. Die Karte bauen
+    # 3. Das Mapping-Feld in der GeoJSON vorbereiten
+    # Wir stellen sicher, dass JEDES Feature in der GeoJSON existiert
+    all_districts = [f['properties']['krs_name_short'] for f in landkreise_geo['features']]
+    
+    # 4. Karte erstellen
     fig = px.choropleth(
         df,
         geojson=landkreise_geo,
-        locations='match_name',
-        featureidkey='properties.match_key',
+        locations='landkreis',
+        featureidkey='properties.krs_name_short',
         color='status',
-        # Von Weiß (0) zu Wolfsburg-Grün (1)
-        color_continuous_scale=[[0, "#f8f9fa"], [1, "#006432"]],
+        color_continuous_scale=[[0, "#f8f9fa"], [1, "#006432"]], # Ganz helles Grau für 0
         range_color=[0, 1],
-        hover_data={'match_name': False, 'landkreis': True, 'status': False}
+        hover_name='landkreis'
     )
 
-    # 5. Geometrie & Layout optimieren
+    # 5. DER TRICK: Damit man alle Landkreise sieht, auch wenn sie nicht in der CSV stehen
     fig.update_geos(
         visible=False,
-        fitbounds="geojson", # Zwingt den Zoom auf ganz Deutschland
+        fitbounds="geojson",
+        showcountries=False,
+        showframe=False
     )
     
+    # Alle Umrisse zeichnen (auch die leeren)
     fig.update_traces(
         marker_line_width=0.5, 
-        marker_line_color="#444" # Dunkelgraue Grenzen für bessere Sichtbarkeit
+        marker_line_color="lightgray",
+        # Das hier sorgt dafür, dass auch Landkreise ohne Daten angezeigt werden
+        showlegend=False 
     )
-    
+
     fig.update_layout(
         margin={"r":0,"t":0,"l":0,"b":0},
-        coloraxis_showscale=False,
-        dragmode=False # Fixiert die Karte für Mobile-User
+        coloraxis_showscale=False
     )
 
-    # 6. Anzeige
     st.plotly_chart(fig, use_container_width=True)
-    
-    st.markdown(f"<p style='text-align: center; color: gray;'>Stand: {pd.Timestamp.now().strftime('%d.%m.%p')} | #spendenrudel</p>", unsafe_allow_html=True)
+    st.write(f"Daten-Check: {len(df)} Einträge in CSV gefunden.")
 
 st.markdown("---")
-st.caption("Daten: Landkreise GeoJSON | Visualisierung: Spendenrudel Dashboard")
+st.caption("Stand: 04.04.2026 | Spendenrudel Dashboard")
