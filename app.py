@@ -9,39 +9,43 @@ st.set_page_config(page_title="Spendenrudel Map", layout="wide")
 st.title("🐺 #spendenrudel")
 
 if not os.path.exists('landkreise.json') or not os.path.exists('spender.csv'):
-    st.error("Dateien fehlen!")
+    st.error("Dateien fehlen im Repository!")
 else:
-    # 1. GeoJSON laden
+    # 1. GeoJSON laden & Schlüssel säubern
     with open('landkreise.json', encoding='utf-8') as f:
         landkreise_geo = json.load(f)
     
-    # 2. GeoJSON Keys säubern (Wir bauen uns einen sauberen Index)
     for feature in landkreise_geo['features']:
-        # Wir nehmen den Namen und machen ihn "match-bereit" (klein, ohne Leerzeichen)
-        raw_name = feature['properties'].get('krs_name_short', '')
-        feature['properties']['clean_key'] = str(raw_name).strip().lower()
+        name = feature['properties'].get('krs_name_short', 'unbekannt')
+        feature['properties']['clean_key'] = str(name).strip().lower()
 
-    # 3. CSV laden & ebenfalls radikal säubern
-    with open('spender.csv', 'r', encoding='utf-8') as f:
-        df_raw = pd.read_csv(io.StringIO(f.read().replace('\r', '').strip()))
-
-    # Spaltennamen säubern (falls da Leerzeichen drin sind)
-    df_raw.columns = df_raw.columns.str.strip().str.lower()
+    # 2. CSV laden mit Schutz gegen unsichtbare Zeichen (BOM)
+    with open('spender.csv', 'r', encoding='utf-8-sig') as f:
+        content = f.read().replace('\r', '').strip()
     
-    # Den Landkreis-Namen in der CSV "match-bereit" machen
-    df_raw['match_id'] = df_raw['landkreis'].astype(str).str.strip().lower()
-    df_raw['status'] = pd.to_numeric(df_raw['status'], errors='coerce').fillna(0)
+    df = pd.read_csv(io.StringIO(content))
 
-    # 4. Karte bauen
+    # 3. Spaltennamen vereinheitlichen (Alles klein, Leerzeichen weg)
+    df.columns = [c.strip().lower() for c in df.columns]
+
+    # Check ob die Spalte da ist, sonst nehmen wir die erste Spalte als 'landkreis'
+    target_col = 'landkreis' if 'landkreis' in df.columns else df.columns[0]
+    status_col = 'status' if 'status' in df.columns else df.columns[1]
+
+    # Daten für das Matching vorbereiten
+    df['match_id'] = df[target_col].astype(str).str.strip().lower()
+    df['val'] = pd.to_numeric(df[status_col], errors='coerce').fillna(0)
+
+    # 4. Die Karte bauen
     fig = px.choropleth(
-        df_raw,
+        df,
         geojson=landkreise_geo,
-        locations='match_id',           # Nutzt den gesäuberten Namen aus der CSV
-        featureidkey='properties.clean_key', # Nutzt den gesäuberten Namen aus der JSON
-        color='status',
+        locations='match_id',
+        featureidkey='properties.clean_key',
+        color='val',
         color_continuous_scale=[[0, "#ffffff"], [1, "#006432"]],
         range_color=[0, 1],
-        hover_name='landkreis'
+        hover_name=target_col
     )
 
     fig.update_geos(
@@ -51,10 +55,9 @@ else:
         bgcolor="white"
     )
     
-    # Wir machen die Linien mal richtig FETT und SCHWARZ, um zu sehen, ob überhaupt was gerendert wird
     fig.update_traces(
-        marker_line_width=0.8, 
-        marker_line_color="black"
+        marker_line_width=0.5, 
+        marker_line_color="#444"
     )
 
     fig.update_layout(
@@ -64,13 +67,11 @@ else:
 
     st.plotly_chart(fig, use_container_width=True)
     
-    # --- DEBUG KONSOLE ---
-    st.subheader("🛠️ Fehlersuche für Bruno:")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.write("In der CSV steht:")
-        st.dataframe(df_raw[['landkreis', 'match_id', 'status']])
-    with col2:
-        st.write("Beispiele aus der Karte (JSON):")
-        sample_names = [f['properties']['krs_name_short'] for f in landkreise_geo['features'][:5]]
-        st.write(sample_names)
+    # Debugger für Bruno (kannst du später löschen)
+    with st.expander("🛠️ Debug-Daten anzeigen"):
+        st.write("Spalten in deiner CSV:", list(df.columns))
+        st.write("Daten-Vorschau:", df[['match_id', 'val']])
+        st.write("Erste 5 Kreise in der Karte:", [f['properties']['clean_key'] for f in landkreise_geo['features'][:5]])
+
+st.markdown("---")
+st.caption("Stand: 04.04.2026 | #spendenrudel")
