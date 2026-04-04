@@ -1,5 +1,5 @@
 import streamlit as st
-import plotly.graph_objects as go
+import plotly.express as px
 import pandas as pd
 import json
 import os
@@ -8,74 +8,73 @@ import io
 st.set_page_config(page_title="Spendenrudel Map", layout="wide")
 st.title("🐺 #spendenrudel")
 
-if not os.path.exists('landkreise.json') or not os.path.exists('landkreise.csv'):
-    st.error("Dateien fehlen!")
+# 1. Dateien laden
+if not os.path.exists('landkreise.json') or not os.path.exists('spender.csv'):
+    st.error("Dateien fehlen im Repo! (landkreise.json & spender.csv)")
 else:
     with open('landkreise.json', encoding='utf-8') as f:
         landkreise_geo = json.load(f)
     
+    # 2. Master-Liste aus der GeoJSON erstellen
+    # Wir ziehen alle Namen direkt aus der Quelle der Wahrheit
+    master_data = []
+    for feature in landkreise_geo['features']:
+        name = feature['properties'].get('krs_name_short')
+        if name:
+            master_data.append(name)
+    
+    # Das ist unser "landkreise_komplett" Datensatz im Speicher
+    landkreise_komplett = pd.DataFrame({'landkreis': master_data, 'status': 0.0})
+
+    # 3. Deine spender.csv einlesen und die 1er setzen
     try:
-        # CSV laden
-        df = pd.read_csv('landkreise.csv', sep=None, engine='python', encoding='utf-8-sig')
+        # Einlesen mit automatischer Trenner-Erkennung
+        df_real = pd.read_csv('spender.csv', sep=None, engine='python', encoding='utf-8-sig')
         
-        # Dictionary für schnellen Zugriff: { 'wolfsburg': 1 }
-        spenden_dict = dict(zip(
-            df.iloc[:, 0].astype(str).str.strip().str.lower(), 
-            df.iloc[:, 1].astype(float)
-        ))
+        # Wir machen alles für den Vergleich kurz klein, damit "Wolfsburg" = "wolfsburg" ist
+        landkreise_komplett['match_key'] = landkreise_komplett['landkreis'].str.strip().str.lower()
+        
+        # Spender-Daten säubern
+        df_real['match_key'] = df_real.iloc[:, 0].astype(str).str.strip().str.lower()
+        df_real['val'] = pd.to_numeric(df_real.iloc[:, 1], errors='coerce').fillna(0)
 
-        # Listen für die Karte vorbereiten
-        ids = []
-        names = []
-        z_values = []
-        colors = []
+        # Die Werte von deiner CSV in die komplette Liste übertragen
+        for _, row in df_real.iterrows():
+            landkreise_komplett.loc[landkreise_komplett['match_key'] == row['match_key'], 'status'] = row['val']
 
-        for feature in landkreise_geo['features']:
-            name_raw = feature['properties'].get('krs_name_short', 'Unbekannt')
-            clean_name = str(name_raw).strip().lower()
-            
-            status = spenden_dict.get(clean_name, 0.0)
-            
-            ids.append(name_raw)
-            names.append(name_raw)
-            z_values.append(status)
-            # Manuelle Farbwahl: Grün für 1, Weiß für 0
-            colors.append("#006432" if status > 0 else "#ffffff")
-
-        # Die Karte mit Graph Objects bauen (stabiler als Express)
-        fig = go.Figure(go.Choropleth(
+        # 4. Die Karte zeichnen (jetzt mit dem kompletten Datensatz)
+        fig = px.choropleth(
+            landkreise_komplett,
             geojson=landkreise_geo,
-            locations=ids,
-            z=z_values,
-            featureidkey="properties.krs_name_short",
-            colorscale=[[0, "#ffffff"], [1, "#006432"]],
-            showscale=False,
-            marker_line_width=0.5,
-            marker_line_color="#444",
-            hovertemplate="<b>%{location}</b><extra></extra>"
-        ))
+            locations='landkreis',
+            featureidkey='properties.krs_name_short',
+            color='status',
+            # Weiß (0) bis Wolfsburg-Grün (1)
+            color_continuous_scale=[[0, "#ffffff"], [1, "#006432"]],
+            range_color=[0, 1],
+            hover_name='landkreis'
+        )
 
         fig.update_geos(
             visible=False,
             fitbounds="geojson",
             bgcolor="white"
         )
-
-        fig.update_layout(
-            margin={"r":0,"t":0,"l":0,"b":0},
-            dragmode=False
-        )
+        
+        fig.update_traces(marker_line_width=0.4, marker_line_color="#444")
+        fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, coloraxis_showscale=False)
 
         st.plotly_chart(fig, use_container_width=True)
 
-        # Erfolgskontrolle
-        if "wolfsburg" in spenden_dict:
-            st.success(f"✅ Wolfsburg ist im System (Status {spenden_dict['wolfsburg']})")
+        # 5. Erfolgskontrolle im Interface
+        found = landkreise_komplett[landkreise_komplett['status'] > 0]['landkreis'].tolist()
+        if found:
+            st.success(f"✅ Grün markiert: {', '.join(found)}")
         else:
-            st.info("ℹ️ Wolfsburg nicht in der CSV gefunden. Check die Schreibweise!")
+            st.info("ℹ️ Aktuell sind alle Kreise weiß. (Check deine spender.csv!)")
 
     except Exception as e:
-        st.error(f"Fehler: {e}")
+        st.error(f"Fehler beim Verarbeiten: {e}")
 
 st.markdown("---")
-st.caption("Modus: Manuelle Index-Steuerung (go.Choropleth)")
+st.caption("Modus: landkreise_komplett Sync aktiv.")
