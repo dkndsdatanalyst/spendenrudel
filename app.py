@@ -18,31 +18,41 @@ def clean_name(name):
         name = name.replace(r, "")
     return name.strip()
 
-# 2. Daten laden
+# 2. Daten vorbereiten
 raw_data = {
     'landkreis': ['Wolfsburg', 'Gifhorn', 'Berlin', 'Hannover'],
     'spenden_status': [1, 0, 0, 1]
 }
 df = pd.DataFrame(raw_data)
 df['landkreis_clean'] = df['landkreis'].apply(clean_name)
-aktivierte_kreise = df[df['spenden_status'] > 0]['landkreis_clean'].tolist()
+aktivierte_kreise = set(df[df['spenden_status'] > 0]['landkreis_clean'].tolist())
 
-# 3. GeoJSON laden
+# 3. GeoJSON laden und Farben in Python berechnen
 if not os.path.exists(GEOJSON_PATH):
     st.error("GeoJSON fehlt!")
     st.stop()
 
-# 4. Pydeck Layer (Korrigierte Farblogik)
-# Wir nutzen eine einfache IF-Bedingung in JavaScript-Syntax ohne das @@
+with open(GEOJSON_PATH, 'r', encoding='utf-8') as f:
+    geojson_data = json.load(f)
+
+# Wir fügen jedem Feature direkt eine Farbe hinzu
+for feature in geojson_data['features']:
+    name = feature['properties'].get(ID_KEY, "")
+    # Check ob der Name (oder bereinigte Name) in unseren aktiven Kreisen ist
+    if name in aktivierte_kreise or clean_name(name) in aktivierte_kreise:
+        feature['properties']['fill_color'] = [0, 100, 50, 200] # Grün
+    else:
+        feature['properties']['fill_color'] = [255, 255, 255, 150] # Weiß
+
+# 4. Pydeck Layer (Greift jetzt nur noch auf den fertigen Wert zu)
 geojson_layer = pdk.Layer(
     "GeoJsonLayer",
-    GEOJSON_PATH,
+    geojson_data, # Wir übergeben das bearbeitete Objekt statt des Pfads
     opacity=0.8,
     stroked=True,
     filled=True,
     pickable=True,
-    # Diese Logik nutzt reines JavaScript, das Pydeck versteht:
-    get_fill_color=f"properties.{ID_KEY} == 'Wolfsburg' || {json.dumps(aktivierte_kreise)}.includes(properties.{ID_KEY}) ? [0, 100, 50, 200] : [255, 255, 255, 150]",
+    get_fill_color="properties.fill_color", # Direkter Zugriff auf den berechneten Wert
     get_line_color=[100, 100, 100],
     line_width_min_pixels=1,
 )
