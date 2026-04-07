@@ -71,39 +71,6 @@ def get_clean_geo(path, active_names):
             
     return data
 
-# GeoJSON vorbereiten
-try:
-    clean_geo = get_clean_geo(GEOJSON_PATH, aktiv_set)
-
-    # 4. Pydeck Layer
-    layer = pdk.Layer(
-        "GeoJsonLayer",
-        clean_geo,
-        pickable=True,
-        stroked=True,
-        filled=True,
-        get_fill_color="properties.fill_color",
-        get_line_color=[150, 150, 150],
-        line_width_min_pixels=1,
-    )
-
-    view_state = pdk.ViewState(latitude=51.1, longitude=10.4, zoom=5.5)
-
-    r = pdk.Deck(
-        layers=[layer],
-        initial_view_state=view_state,
-        map_style="light",
-        tooltip={"html": "<b>Landkreis:</b> {display_name}"}
-    )
-
-    st.pydeck_chart(r)
-
-except Exception as e:
-    st.error(f"Darstellungsfehler: {e}")
-
-# --- AB HIER: Statistik & Unterschrift (Außerhalb des try-Blocks) ---
-st.markdown("---")
-
 # --- 1. GEOJSON VORBEREITEN ---
 geo_result = get_clean_geo(GEOJSON_PATH, aktiv_set)
 
