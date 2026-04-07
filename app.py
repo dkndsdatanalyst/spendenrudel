@@ -8,74 +8,78 @@ st.set_page_config(page_title="Spendenrudel Map", layout="wide")
 st.title("🐺 #spendenrudel - Live Map")
 
 GEOJSON_PATH = 'georef-germany-kreis.geojson'
+# Wir nutzen diesen Key nur für den Tooltip
 ID_KEY = "krs_name_short"
 
 # 1. Namen bereinigen
 def clean_name(name):
     if pd.isna(name): return ""
     name = str(name).strip()
-    replacements = [", Stadt", " Stadt", ", Hansestadt", " Hansestadt", "Landkreis ", "LK ", "Kreis "]
-    for r in replacements:
+    for r in [", Stadt", " Stadt", ", Hansestadt", " Land", "Landkreis ", "LK ", "Kreis "]:
         name = name.replace(r, "")
     return name.strip()
 
-# 2. Daten laden (Hier später deine CSV einbinden)
-raw_data = {
-    'landkreis': ['Wolfsburg', 'Gifhorn', 'Berlin', 'Hannover'],
-    'spenden_status': [1, 0, 0, 1]
-}
+# 2. Daten laden
+# Ersetze dies durch: df = pd.read_csv('deine_datei.csv')
+raw_data = {'landkreis': ['Wolfsburg', 'Berlin'], 'status': [1, 0]}
 df = pd.DataFrame(raw_data)
-df['landkreis_clean'] = df['landkreis'].apply(clean_name)
-# Set für schnelleren Abgleich
-aktivierte_kreise = set(df[df['spenden_status'] > 0]['landkreis_clean'].tolist())
+df['clean'] = df['landkreis'].apply(clean_name)
+aktiv_set = set(df[df['status'] > 0]['clean'].tolist())
 
-# 3. GeoJSON laden und Farben in Python berechnen
+# 3. GeoJSON laden und "Säubern"
 if not os.path.exists(GEOJSON_PATH):
-    st.error(f"GeoJSON Datei '{GEOJSON_PATH}' fehlt!")
+    st.error("Datei fehlt!")
     st.stop()
 
 @st.cache_data
-def get_prepared_geojson(path, active_list):
+def get_clean_geo(path, active_names):
     with open(path, 'r', encoding='utf-8') as f:
-        geojson = json.load(f)
+        data = json.load(f)
     
-    # Wir fügen jedem Feature direkt eine Farbe hinzu
-    for feature in geojson['features']:
-        name = feature['properties'].get(ID_KEY, "")
-        # Abgleich mit dem Namen aus der GeoJSON (evtl. auch bereinigt)
-        if name in active_list or clean_name(name) in active_list:
-            feature['properties']['fill_color'] = [0, 100, 50, 200] # Grün
+    for feature in data['features']:
+        # Wir holen uns den Namen
+        prop_name = feature['properties'].get(ID_KEY, "")
+        
+        # WICHTIG: Wir löschen ALLE anderen Properties, die den Fehler 
+        # ".i" oder "Variable starts with number" verursachen könnten!
+        name_for_tooltip = str(prop_name)
+        feature['properties'] = {'display_name': name_name_for_tooltip}
+        
+        # Farbe setzen
+        if clean_name(prop_name) in active_names:
+            feature['properties']['fill_color'] = [0, 100, 50, 200]
         else:
-            feature['properties']['fill_color'] = [255, 255, 255, 150] # Weiß
-    return geojson
+            feature['properties']['fill_color'] = [255, 255, 255, 140]
+            
+    return data
 
-# GeoJSON mit eingebackenen Farben holen
-prepared_geo = get_prepared_geojson(GEOJSON_PATH, aktivierte_kreise)
+# GeoJSON vorbereiten
+clean_geo = get_clean_geo(GEOJSON_PATH, aktiv_set)
 
-# 4. Pydeck Layer (Greift jetzt nur noch auf den fertigen Wert zu)
-geojson_layer = pdk.Layer(
+# 4. Pydeck Layer
+# Wir benutzen jetzt NUR NOCH die Felder, die wir selbst angelegt haben
+layer = pdk.Layer(
     "GeoJsonLayer",
-    prepared_geo, 
-    opacity=0.8,
+    clean_geo,
+    pickable=True,
     stroked=True,
     filled=True,
-    pickable=True,
-    # Wir sagen Pydeck einfach: Nimm die Farbe, die schon in 'properties' steht
-    get_fill_color="properties.fill_color", 
-    get_line_color=[100, 100, 100],
+    extrude=False,
+    get_fill_color="properties.fill_color", # Unser eigenes Feld
+    get_line_color=[150, 150, 150],
     line_width_min_pixels=1,
 )
 
-view_state = pdk.ViewState(latitude=51.1657, longitude=10.4515, zoom=5.5)
+view_state = pdk.ViewState(latitude=51.1, longitude=10.4, zoom=5.5)
 
 r = pdk.Deck(
-    layers=[geojson_layer],
+    layers=[layer],
     initial_view_state=view_state,
     map_style="light",
-    tooltip={"html": "<b>Landkreis:</b> {properties." + ID_KEY + "}"}
+    tooltip={"html": "<b>Landkreis:</b> {display_name}"} # Unser eigenes Feld
 )
 
 st.pydeck_chart(r)
 
-if aktivierte_kreise:
-    st.success(f"Aktiviert: {', '.join(aktivierte_kreise)}")
+if aktiv_set:
+    st.success(f"Aktiviert: {', '.join(aktiv_set)}")
