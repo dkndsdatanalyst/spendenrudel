@@ -97,8 +97,6 @@ try:
     )
 
     st.pydeck_chart(r)
-    # ... (vorheriger Code mit st.pydeck_chart(r))
-    st.pydeck_chart(r)
 
 except Exception as e:
     st.error(f"Darstellungsfehler: {e}")
@@ -106,18 +104,59 @@ except Exception as e:
 # --- AB HIER: Statistik & Unterschrift (Außerhalb des try-Blocks) ---
 st.markdown("---")
 
-# Dynamische Zählung
-anzahl_aktiv = len(aktiv_set)
-# Wir zählen die Features in der GeoJSON für die Gesamtzahl
-anzahl_gesamt = len(geo_result['features']) if isinstance(geo_result, dict) else 400
+# --- 1. GEOJSON VORBEREITEN ---
+geo_result = get_clean_geo(GEOJSON_PATH, aktiv_set)
 
-# Die Anzeige
+# --- 2. STATISTIK-BERECHNUNG (HIER OBEN, DAMIT SIE ÜBERALL BEKANNT IST) ---
+anzahl_aktiv = len(aktiv_set)
+if isinstance(geo_result, dict) and 'features' in geo_result:
+    anzahl_gesamt = len(geo_result['features'])
+else:
+    anzahl_gesamt = 401 # Fallback für Deutschland
+
+# --- 3. KARTEN-DARSTELLUNG ---
+if geo_result is None:
+    st.error(f"Datei {GEOJSON_PATH} fehlt im Repository!")
+elif geo_result == "LFS_ERROR":
+    st.error("GitHub LFS Fehler: Die Datei wurde nicht korrekt hochgeladen.")
+else:
+    try:
+        # Layer definieren
+        layer = pdk.Layer(
+            "GeoJsonLayer",
+            geo_result,
+            pickable=True,
+            stroked=True,
+            filled=True,
+            get_fill_color="properties.fill_color",
+            get_line_color=[150, 150, 150],
+            line_width_min_pixels=1,
+        )
+
+        # Karte konfigurieren
+        r = pdk.Deck(
+            layers=[layer],
+            initial_view_state=pdk.ViewState(latitude=51.1, longitude=10.4, zoom=5.5),
+            map_style="light",
+            tooltip={"html": "<b>Landkreis:</b> {display_name}"}
+        )
+
+        # Karte NUR HIER EINMAL anzeigen
+        st.pydeck_chart(r)
+
+    except Exception as e:
+        st.error(f"Darstellungsfehler: {e}")
+
+# --- 4. UNTERSCHRIFT & CREDITS (GANZ UNTEN) ---
+st.markdown("---")
+
+# Die "1/xxx" Anzeige
 st.subheader(f"📊 Fortschritt: {anzahl_aktiv} von {anzahl_gesamt} Landkreisen aktiv")
 st.progress(anzahl_aktiv / anzahl_gesamt)
 
 st.write("") # Kleiner Abstand
 
-# Credits & Quellen in Spalten
+# Credits in zwei Spalten
 col1, col2 = st.columns(2)
 with col1:
     st.caption("✨ **Erstellt durch:** wobspendenrudel-intern")
