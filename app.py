@@ -97,6 +97,10 @@ try:
     )
 
     st.pydeck_chart(r)
+    
+    except Exception as e:
+    st.error(f"Fehler beim Rendern: {e}")
+
 # --- UNTERSCHRIFT & STATISTIK ---
 
 # Dynamische Zählung
@@ -118,11 +122,4 @@ with col1:
     st.caption("✨ **Erstellt durch:** wobspendenrudel-intern")
 with col2:
     st.caption("🗺️ **GEOJSON Quelle:** kaggle / tb1978")
-    
-except Exception as e:
-    st.error(f"Fehler beim Rendern: {e}")
 
-# Anzeige der aktiven Kreise zur Kontrolle
-if aktiv_set:
-    st.write("### Im Rudel aktiv:")
-    st.success(", ".join(aktiv_set))
