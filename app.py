@@ -8,11 +8,11 @@ st.set_page_config(page_title="Spendenrudel Map Test", layout="wide")
 st.title("🐺 #spendenrudel - Testmodus")
 
 # 1. GeoJSON laden
-if not os.path.exists('landkreise.json'):
+if not os.path.exists('georef-germany-kreis.geojson'):
     st.error("❌ Die 'landkreise.json' fehlt!")
     st.stop()
 
-with open('landkreise.json', 'r', encoding='utf-8-sig') as f:
+with open('georef-germany-kreis.geojson', 'r', encoding='utf-8-sig') as f:
     landkreise_geo = json.load(f)
 
 # 2. Master-Liste im Speicher erstellen
