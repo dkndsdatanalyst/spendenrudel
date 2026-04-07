@@ -8,27 +8,40 @@ st.set_page_config(page_title="Spendenrudel Map", layout="wide")
 st.title("🐺 #spendenrudel - Live Map")
 
 GEOJSON_PATH = 'georef-germany-kreis.geojson'
-# Wir nutzen diesen Key nur für den Tooltip
 ID_KEY = "krs_name_short"
 
 # 1. Namen bereinigen
 def clean_name(name):
     if pd.isna(name): return ""
     name = str(name).strip()
-    for r in [", Stadt", " Stadt", ", Hansestadt", " Land", "Landkreis ", "LK ", "Kreis "]:
+    # Entfernt gängige Zusätze für besseres Matching
+    for r in [", Stadt", " Stadt", ", Hansestadt", " Hansestadt", "Landkreis ", "LK ", "Kreis "]:
         name = name.replace(r, "")
     return name.strip()
 
-# 2. Daten laden
-# Ersetze dies durch: df = pd.read_csv('deine_datei.csv')
-raw_data = {'landkreis': ['Wolfsburg', 'Berlin'], 'status': [1, 0]}
-df = pd.DataFrame(raw_data)
-df['clean'] = df['landkreis'].apply(clean_name)
-aktiv_set = set(df[df['status'] > 0]['clean'].tolist())
+# 2. Daten laden (CSV Einbindung)
+@st.cache_data
+def load_spenden_data():
+    # Falls die Datei existiert, lade sie. Sonst nimm Testdaten.
+    csv_path = 'spenden.csv' # Passe den Namen hier an
+    if os.path.exists(csv_path):
+        df = pd.read_csv(csv_path)
+    else:
+        # Testdaten falls CSV noch nicht da/hochgeladen
+        df = pd.DataFrame({
+            'landkreis': ['Wolfsburg', 'Gifhorn', 'Berlin'],
+            'spenden_status': [1, 0, 0]
+        })
+    
+    df['clean'] = df['landkreis'].apply(clean_name)
+    return df
 
-# 3. GeoJSON laden und "Säubern"
+df_spenden = load_spenden_data()
+aktiv_set = set(df_spenden[df_spenden['spenden_status'] > 0]['clean'].tolist())
+
+# 3. GeoJSON laden und "Säubern" (Hier war der NameError)
 if not os.path.exists(GEOJSON_PATH):
-    st.error("Datei fehlt!")
+    st.error(f"GeoJSON Datei '{GEOJSON_PATH}' fehlt!")
     st.stop()
 
 @st.cache_data
@@ -37,49 +50,58 @@ def get_clean_geo(path, active_names):
         data = json.load(f)
     
     for feature in data['features']:
-        # Wir holen uns den Namen
-        prop_name = feature['properties'].get(ID_KEY, "")
+        # Originalnamen sichern
+        prop_name = feature['properties'].get(ID_KEY, "Unbekannt")
         
-        # WICHTIG: Wir löschen ALLE anderen Properties, die den Fehler 
-        # ".i" oder "Variable starts with number" verursachen könnten!
+        # RADIKAL-REINIGUNG: Wir überschreiben alle Properties, 
+        # um den ".i" Fehler durch Zahlen am Spaltenanfang zu verhindern.
         name_for_tooltip = str(prop_name)
-        feature['properties'] = {'display_name': name_name_for_tooltip}
         
-        # Farbe setzen
+        # Farbe bestimmen
         if clean_name(prop_name) in active_names:
-            feature['properties']['fill_color'] = [0, 100, 50, 200]
+            fill = [0, 100, 50, 200] # Grün
         else:
-            feature['properties']['fill_color'] = [255, 255, 255, 140]
+            fill = [255, 255, 255, 140] # Weiß
+            
+        # Nur diese zwei Felder darf Pydeck sehen:
+        feature['properties'] = {
+            'display_name': name_for_tooltip,
+            'fill_color': fill
+        }
             
     return data
 
 # GeoJSON vorbereiten
-clean_geo = get_clean_geo(GEOJSON_PATH, aktiv_set)
+try:
+    clean_geo = get_clean_geo(GEOJSON_PATH, aktiv_set)
 
-# 4. Pydeck Layer
-# Wir benutzen jetzt NUR NOCH die Felder, die wir selbst angelegt haben
-layer = pdk.Layer(
-    "GeoJsonLayer",
-    clean_geo,
-    pickable=True,
-    stroked=True,
-    filled=True,
-    extrude=False,
-    get_fill_color="properties.fill_color", # Unser eigenes Feld
-    get_line_color=[150, 150, 150],
-    line_width_min_pixels=1,
-)
+    # 4. Pydeck Layer
+    layer = pdk.Layer(
+        "GeoJsonLayer",
+        clean_geo,
+        pickable=True,
+        stroked=True,
+        filled=True,
+        get_fill_color="properties.fill_color",
+        get_line_color=[150, 150, 150],
+        line_width_min_pixels=1,
+    )
 
-view_state = pdk.ViewState(latitude=51.1, longitude=10.4, zoom=5.5)
+    view_state = pdk.ViewState(latitude=51.1, longitude=10.4, zoom=5.5)
 
-r = pdk.Deck(
-    layers=[layer],
-    initial_view_state=view_state,
-    map_style="light",
-    tooltip={"html": "<b>Landkreis:</b> {display_name}"} # Unser eigenes Feld
-)
+    r = pdk.Deck(
+        layers=[layer],
+        initial_view_state=view_state,
+        map_style="light",
+        tooltip={"html": "<b>Landkreis:</b> {display_name}"}
+    )
 
-st.pydeck_chart(r)
+    st.pydeck_chart(r)
 
+except Exception as e:
+    st.error(f"Fehler beim Rendern: {e}")
+
+# Anzeige der aktiven Kreise zur Kontrolle
 if aktiv_set:
-    st.success(f"Aktiviert: {', '.join(aktiv_set)}")
+    st.write("### Im Rudel aktiv:")
+    st.success(", ".join(aktiv_set))
