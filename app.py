@@ -97,7 +97,28 @@ try:
     )
 
     st.pydeck_chart(r)
+# --- UNTERSCHRIFT & STATISTIK ---
 
+# Dynamische Zählung
+anzahl_aktiv = len(aktiv_set)
+anzahl_gesamt = len(geo_result['features']) if geo_result and isinstance(geo_result, dict) else 400
+
+# Die "1/xxx" Anzeige
+st.subheader(f"📊 Fortschritt: {anzahl_aktiv} von {anzahl_gesamt} Landkreisen aktiv")
+
+# Fortschrittsbalken (optional, sieht aber profi-mäßig aus)
+progress = anzahl_aktiv / anzahl_gesamt
+st.progress(progress)
+
+st.markdown("---")
+
+# Credits & Quellen
+col1, col2 = st.columns(2)
+with col1:
+    st.caption("✨ **Erstellt durch:** wobspendenrudel-intern")
+with col2:
+    st.caption("🗺️ **GEOJSON Quelle:** kaggle / tb1978")
+    
 except Exception as e:
     st.error(f"Fehler beim Rendern: {e}")
 
