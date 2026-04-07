@@ -9,67 +9,73 @@ st.title("🐺 #spendenrudel - Testmodus")
 
 file_name = 'georef-germany-kreis.geojson'
 
-# 1. Datei laden mit Fehlerprüfung
+# 1. GeoJSON laden
 if not os.path.exists(file_name):
-    st.error(f"❌ Datei '{file_name}' nicht gefunden!")
+    st.error(f"❌ Datei '{file_name}' fehlt!")
     st.stop()
 
 try:
-    with open(file_name, 'r', encoding='utf-8-sig') as f:
-        raw_content = f.read()
-        
-    if not raw_content.strip():
-        st.error(f"❌ Die Datei '{file_name}' ist komplett leer (0 Bytes).")
-        st.stop()
-        
-    if "version https://git-lfs.github.com" in raw_content:
-        st.error("❌ Git LFS Fehler! Deine App sieht nur den 'Pointer', nicht die echten Daten.")
-        st.info("Lösung: Lade die Datei direkt bei GitHub hoch (Drag & Drop) statt über die Kommandozeile, oder deaktiviere LFS für diese Datei.")
-        st.stop()
+    with open(file_name, 'r', encoding='utf-8') as f:
+        landkreise_geo = json.load(f)
 
-    landkreise_geo = json.loads(raw_content)
+    # --- AUTOMATISCHE KEY-SUCHE ---
+    # Wir schauen uns das erste Element an, um zu sehen, wie die Spalte für den Namen heißt
+    first_props = landkreise_geo['features'][0]['properties']
+    
+    # Mögliche Keys für den Landkreisnamen in solchen Dateien
+    possible_keys = ['krs_name_short', 'name_2', 'name', 'GEN', 'lan_name_short']
+    name_key = next((k for k in possible_keys if k in first_props), None)
 
-except Exception as e:
-    st.error(f"❌ Kritischer Fehler beim Laden: {e}")
-    st.stop()
+    if not name_key:
+        # Falls keiner der Keys passt, nehmen wir den ersten verfügbaren Key
+        name_key = list(first_props.keys())[0]
 
-# 2. Daten erstellen
-# Wir nehmen den Namen aus der GeoJSON (Prüfe hier ggf. den Key 'krs_name_short')
-features = landkreise_geo.get('features', [])
-# Wir versuchen verschiedene Keys, falls krs_name_short nicht existiert
-sample_props = features[0]['properties'] if features else {}
-name_key = 'krs_name_short' if 'krs_name_short' in sample_props else next(iter(sample_props), None)
+    # 2. DataFrame erstellen
+    # Wir extrahieren alle Namen exakt so, wie sie in der GeoJSON stehen
+    alle_namen_aus_json = [f['properties'][name_key] for f in landkreise_geo['features'] if name_key in f['properties']]
+    
+    df = pd.DataFrame({'landkreis_id': alle_namen_aus_json, 'status': 0.0})
 
-alle_namen = [f['properties'].get(name_key) for f in features if f['properties'].get(name_key)]
-df = pd.DataFrame({'landkreis': alle_namen, 'status': 0.0})
+    # Wolfsburg aktivieren (Suche nach Teilstring "Wolfsburg")
+    df.loc[df['landkreis_id'].str.contains('Wolfsburg', case=False, na=False), 'status'] = 1.0
 
-# Wolfsburg aktivieren
-df.loc[df['landkreis'].str.contains('Wolfsburg', case=False, na=False), 'status'] = 1.0
-
-# 3. Karte zeichnen
-try:
+    # 3. Karte zeichnen
     fig = px.choropleth(
         df,
         geojson=landkreise_geo,
-        locations='landkreis',
-        featureidkey=f'properties.{name_key}',
+        locations='landkreis_id',          # Spalte im DataFrame
+        featureidkey=f'properties.{name_key}', # Pfad in der GeoJSON
         color='status',
         color_continuous_scale=[[0, "#ffffff"], [1, "#006432"]],
         range_color=[0, 1],
-        hover_name='landkreis'
+        hover_name='landkreis_id'
     )
 
-    fig.update_geos(visible=False, fitbounds="geojson", bgcolor="white")
-    fig.update_traces(marker_line_width=0.3, marker_line_color="#444")
-    fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, coloraxis_showscale=False)
+    fig.update_geos(
+        visible=False, 
+        fitbounds="geojson", 
+        bgcolor="white"
+    )
+    
+    fig.update_traces(marker_line_width=0.2, marker_line_color="#444")
+    
+    fig.update_layout(
+        margin={"r":0,"t":0,"l":0,"b":0}, 
+        coloraxis_showscale=False,
+        height=700
+    )
 
-    # Korrektur laut Log: width='stretch' statt use_container_width
     st.plotly_chart(fig, width='stretch')
 
-    if not df[df['status'] > 0].empty:
-        st.success(f"Aktiviert: {df[df['status'] > 0]['landkreis'].iloc[0]}")
+    # Status-Anzeige unter der Karte
+    aktiviert = df[df['status'] > 0]['landkreis_id'].tolist()
+    if aktiviert:
+        st.success(f"Aktiviert: {aktiviert[0]}")
+    else:
+        st.warning(f"Wolfsburg wurde nicht gefunden. In der JSON genutzter Key: '{name_key}'")
 
 except Exception as e:
-    st.error(f"Fehler beim Rendern der Karte: {e}")
+    st.error(f"Fehler beim Verarbeiten: {e}")
 
-st.caption(f"Verwendeter Key aus GeoJSON: {name_key}")
+st.markdown("---")
+st.caption(f"Debug: Nutze Spalte '{name_key}' aus der GeoJSON für die Zuordnung.")
