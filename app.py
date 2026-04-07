@@ -97,29 +97,29 @@ try:
     )
 
     st.pydeck_chart(r)
-    
-    except Exception as e:
-    st.error(f"Fehler beim Rendern: {e}")
+    # ... (vorheriger Code mit st.pydeck_chart(r))
+    st.pydeck_chart(r)
 
-# --- UNTERSCHRIFT & STATISTIK ---
+except Exception as e:
+    st.error(f"Darstellungsfehler: {e}")
+
+# --- AB HIER: Statistik & Unterschrift (Außerhalb des try-Blocks) ---
+st.markdown("---")
 
 # Dynamische Zählung
 anzahl_aktiv = len(aktiv_set)
-anzahl_gesamt = len(geo_result['features']) if geo_result and isinstance(geo_result, dict) else 400
+# Wir zählen die Features in der GeoJSON für die Gesamtzahl
+anzahl_gesamt = len(geo_result['features']) if isinstance(geo_result, dict) else 400
 
-# Die "1/xxx" Anzeige
+# Die Anzeige
 st.subheader(f"📊 Fortschritt: {anzahl_aktiv} von {anzahl_gesamt} Landkreisen aktiv")
+st.progress(anzahl_aktiv / anzahl_gesamt)
 
-# Fortschrittsbalken (optional, sieht aber profi-mäßig aus)
-progress = anzahl_aktiv / anzahl_gesamt
-st.progress(progress)
+st.write("") # Kleiner Abstand
 
-st.markdown("---")
-
-# Credits & Quellen
+# Credits & Quellen in Spalten
 col1, col2 = st.columns(2)
 with col1:
     st.caption("✨ **Erstellt durch:** wobspendenrudel-intern")
 with col2:
     st.caption("🗺️ **GEOJSON Quelle:** kaggle / tb1978")
-
