@@ -23,7 +23,7 @@ def clean_name(name):
 @st.cache_data
 def load_spenden_data():
     # Falls die Datei existiert, lade sie. Sonst nimm Testdaten.
-    csv_path = 'spenden.csv' # Passe den Namen hier an
+    csv_path = 'spenden_status.csv' # Passe den Namen hier an
     if os.path.exists(csv_path):
         df = pd.read_csv(csv_path)
     else:
@@ -37,7 +37,7 @@ def load_spenden_data():
     return df
 
 df_spenden = load_spenden_data()
-aktiv_set = set(df_spenden[df_spenden['status'] > 0]['clean'].tolist())
+aktiv_set = set(df_spenden[df_spenden['spenden_status'] > 0]['clean'].tolist())
 
 # 3. GeoJSON laden und "Säubern" (Hier war der NameError)
 if not os.path.exists(GEOJSON_PATH):
