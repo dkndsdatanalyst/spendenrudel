@@ -37,7 +37,7 @@ def load_spenden_data():
     return df
 
 df_spenden = load_spenden_data()
-aktiv_set = set(df_spenden[df_spenden['spenden_status'] > 0]['clean'].tolist())
+aktiv_set = set(df_spenden[df_spenden['status'] > 0]['clean'].tolist())
 
 # 3. GeoJSON laden und "Säubern" (Hier war der NameError)
 if not os.path.exists(GEOJSON_PATH):
