@@ -29,8 +29,8 @@ def load_spenden_data():
     else:
         # Testdaten falls CSV noch nicht da/hochgeladen
         df = pd.DataFrame({
-            'landkreis': ['Wolfsburg', 'Gifhorn', 'Berlin'],
-            'spenden_status': [1, 0, 0]
+            'landkreis': ['Wolfsburg', 'Göttingen', 'Gifhorn', 'Berlin'],
+            'spenden_status': [1, 1, 0, 0]
         })
     
     df['clean'] = df['landkreis'].apply(clean_name)
