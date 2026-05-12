@@ -23,7 +23,7 @@ def clean_name(name):
 @st.cache_data
 def load_spenden_data():
     # Falls die Datei existiert, lade sie. Sonst nimm Testdaten.
-    csv_path = 'landkreise.csv' # Passe den Namen hier an
+    csv_path = 'spenden.csv' # Passe den Namen hier an
     if os.path.exists(csv_path):
         df = pd.read_csv(csv_path)
     else:
