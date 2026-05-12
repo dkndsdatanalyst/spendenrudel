@@ -23,14 +23,14 @@ def clean_name(name):
 @st.cache_data
 def load_spenden_data():
     # Falls die Datei existiert, lade sie. Sonst nimm Testdaten.
-    csv_path = 'spenden.csv' # Passe den Namen hier an
+    csv_path = 'landkreise.csv' # Passe den Namen hier an
     if os.path.exists(csv_path):
         df = pd.read_csv(csv_path)
     else:
         # Testdaten falls CSV noch nicht da/hochgeladen
         df = pd.DataFrame({
-            'landkreis': ['Wolfsburg', 'Göttingen', 'Gifhorn', 'Berlin'],
-            'spenden_status': [1, 1, 0, 0]
+            'landkreis': ['Wolfsburg',],
+            'spenden_status': [1]
         })
     
     df['clean'] = df['landkreis'].apply(clean_name)
