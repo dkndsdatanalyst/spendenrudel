@@ -121,13 +121,26 @@ fh_aktuell = 10
 # --- 4. UNTERSCHRIFT & CREDITS (GANZ UNTEN) ---
 st.markdown("---")
 
+# 1. WICHTIG: Punkt statt Komma bei der Zahl!
+ziel_gesamt = 194.5
+th_aktuell = 9.45  # Auch hier Punkt nutzen
+fh_aktuell = 10.0
+
+# --- 4. UNTERSCHRIFT & CREDITS (GANZ UNTEN) ---
+st.markdown("---")
+
 # Die "1/xxx" Anzeige
 st.subheader(f"📊 Fortschritt: {anzahl_aktiv} von {anzahl_gesamt} Landkreisen aktiv")
-st.progresss(anzahl_aktiv / anzahl_gesamt)
-st.subheader(f"📊 Fortschritt: Tierheim-Spenden:")
+st.progress(anzahl_aktiv / anzahl_gesamt) # Korrigiert: Nur zwei 's' bei progress
+
+# Tierheim-Balken
+st.subheader(f"📊 Fortschritt: Tierheim-Spenden:") # Korrigiert: Anführungszeichen am Ende!
 st.progress(th_aktuell / ziel_gesamt)
-st.subheader(f"📊 Fortschritt: Frauenhaus-Spenden:")
+
+# Frauenhaus-Balken
+st.subheader(f"📊 Fortschritt: Frauenhaus-Spenden:") # Korrigiert: Anführungszeichen am Ende!
 st.progress(fh_aktuell / ziel_gesamt)
+
 st.write("") # Kleiner Abstand
 
 # Credits in zwei Spalten
