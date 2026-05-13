@@ -119,8 +119,11 @@ st.markdown("---")
 
 # Die "1/xxx" Anzeige
 st.subheader(f"📊 Fortschritt: {anzahl_aktiv} von {anzahl_gesamt} Landkreisen aktiv")
-st.progress(anzahl_aktiv / anzahl_gesamt)
-
+ziel_gesamt = 194,5
+th_aktuell = 9,45
+fh_aktuell = 10
+st.progress(th_aktuell / ziel_gesamt)
+st.progress(fh_aktuell / ziel_gesamt)
 st.write("") # Kleiner Abstand
 
 # Credits in zwei Spalten
