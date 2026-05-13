@@ -114,8 +114,8 @@ else:
     except Exception as e:
         st.error(f"Darstellungsfehler: {e}")
 
-ziel_gesamt = 194,5
-th_aktuell = 9,45
+ziel_gesamt = 194.5
+th_aktuell = 9.45
 fh_aktuell = 10
 
 # --- 4. UNTERSCHRIFT & CREDITS (GANZ UNTEN) ---
