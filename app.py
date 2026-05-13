@@ -134,11 +134,11 @@ st.subheader(f"📊 Fortschritt: {anzahl_aktiv} von {anzahl_gesamt} Landkreisen 
 st.progress(anzahl_aktiv / anzahl_gesamt) # Korrigiert: Nur zwei 's' bei progress
 
 # Tierheim-Balken
-st.subheader(f"📊 Fortschritt: Tierheim-Spenden: {th_aktuell} von {ziel_gesamt}") # Korrigiert: Anführungszeichen am Ende!
+st.subheader(f"📊 Fortschritt: Tierheim-Spenden: {th_aktuell} von {ziel_gesamt} €") # Korrigiert: Anführungszeichen am Ende!
 st.progress(th_aktuell / ziel_gesamt)
 
 # Frauenhaus-Balken
-st.subheader(f"📊 Fortschritt: Frauenhaus-Spenden: {fh_aktuell} von {ziel_gesamt}") # Korrigiert: Anführungszeichen am Ende!
+st.subheader(f"📊 Fortschritt: Frauenhaus-Spenden: {fh_aktuell} von {ziel_gesamt} €") # Korrigiert: Anführungszeichen am Ende!
 st.progress(fh_aktuell / ziel_gesamt)
 
 st.write("") # Kleiner Abstand
