@@ -3,7 +3,7 @@ import pandas as pd
 import pydeck as pdk
 import json
 import os
-
+ 
 st.set_page_config(page_title="Spendenrudel Map", layout="wide")
 st.title("🐺 #wobspendenrudel - Live Map")
 
