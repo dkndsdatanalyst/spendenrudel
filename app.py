@@ -5,7 +5,7 @@ import json
 import os
 
 st.set_page_config(page_title="Spendenrudel Map", layout="wide")
-st.title("🐺 #spendenrudel - Live Map")
+st.title("🐺 #wobspendenrudel - Live Map")
 
 GEOJSON_PATH = 'georef-germany-kreis.geojson'
 ID_KEY = "krs_name_short"
