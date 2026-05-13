@@ -142,7 +142,7 @@ st.subheader(f"📊 Fortschritt: Frauenhaus-Spenden:") # Korrigiert: Anführungs
 st.progress(fh_aktuell / ziel_gesamt)
 
 st.write("") # Kleiner Abstand
-
+ 
 # Credits in zwei Spalten
 col1, col2 = st.columns(2)
 with col1:
