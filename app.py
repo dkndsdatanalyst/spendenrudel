@@ -114,15 +114,19 @@ else:
     except Exception as e:
         st.error(f"Darstellungsfehler: {e}")
 
+ziel_gesamt = 194,5
+th_aktuell = 9,45
+fh_aktuell = 10
+
 # --- 4. UNTERSCHRIFT & CREDITS (GANZ UNTEN) ---
 st.markdown("---")
 
 # Die "1/xxx" Anzeige
 st.subheader(f"📊 Fortschritt: {anzahl_aktiv} von {anzahl_gesamt} Landkreisen aktiv")
-ziel_gesamt = 194,5
-th_aktuell = 9,45
-fh_aktuell = 10
+st.progresss(anzahl_aktiv / anzahl_gesamt)
+st.subheader(f"📊 Fortschritt: Tierheim-Spenden:)
 st.progress(th_aktuell / ziel_gesamt)
+st.subheader(f"📊 Fortschritt: Frauenhaus-Spenden:)
 st.progress(fh_aktuell / ziel_gesamt)
 st.write("") # Kleiner Abstand
 
